@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Job Application Tracker</title>
+    <!-- Tailwind CSS for Modern Responsive UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js for lightweight state management & reactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- FontAwesome for the matching emojis/icons seen in image_555da1.png -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 transition-colors duration-200" 
+      :class="{ 'dark bg-gray-900 text-gray-100': darkMode }"
+      x-data="trackerApp()" 
+      x-init="initTracker()">
+
+    <!-- NOTIFICATION BANNER -->
+    <div x-show="notification" 
+         x-transition
+         class="fixed top-4 right-4 z-50 flex items-center p-4 mb-4 rounded-lg shadow-lg bg-blue-600 text-white" 
+         role="alert" 
+         x-cloak>
+        <i class="fa-solid fa-bell mr-2"></i>
+        <div class="text-sm font-medium" x-text="notification"></div>
+    </div>
+
+    <!-- AUTHENTICATION UI SIMULATION -->
+    <div x-show="!isLoggedIn" class="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-950 p-4">
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-xl max-w-md w-full">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-extrabold text-blue-600 dark:text-blue-400">🚀 JobHub AI</h2>
+                <p class="text-gray-500 dark:text-gray-400 mt-2" x-text="authMode === 'login' ? 'Sign in to track applications' : 'Create your job seeker account'"></p>
+            </div>
+            <form @submit.prevent="handleAuth()">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Email Address</label>
+                    <input type="email" required class="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" placeholder="you@example.com">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium mb-1">Password</label>
+                    <input type="password" required class="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition" x-text="authMode === 'login' ? 'Login' : 'Sign Up'"></button>
+            </form>
+            <div class="mt-6 text-center text-sm">
+                <button @click="authMode = authMode === 'login' ? 'signup' : 'login'" class="text-blue-500 hover:underline">
+                    <span x-text="authMode === 'login' ? 'Need an account? Sign Up' : 'Already have an account? Login'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP DASHBOARD -->
+    <div x-show="isLoggedIn" x-cloak class="min-h-screen flex flex-col">
+        <!-- TOP NAVIGATION BAR -->
+        <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🤖</span>
+                    <h1 class="text-xl font-bold tracking-tight text-blue-600 dark:text-blue-400">AI Application Tracker</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <!-- Light/Dark Mode Toggle -->
+                    <button @click="toggleTheme()" class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <i class="fa-solid" :class="darkMode ? 'fa-sun text-yellow-400' : 'fa-moon'"></i>
+                    </button>
+                    <!-- Local Storage Save Indicator -->
+                    <span class="text-xs text-green-500 flex items-center gap-1 bg-green-50 dark:bg-green-950/30 px-2 py-1 rounded">
+                        <i class="fa-solid fa-floppy-disk"></i> Local Auto-Save
+                    </span>
+                    <!-- User Management Profile Simulation -->
+                    <button @click="logout()" class="text-sm font-medium text-red-500 hover:underline flex items-center gap-1">
+                        <i class="fa-solid fa-sign-out"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+            <!-- DYNAMIC ANALYTICS DASHBOARD METRICS -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">🏠 Total Applications</p>
+                        <h3 class="text-3xl font-bold mt-1" x-text="jobs.length">0</h3>
+                    </div>
+                    <div class="p-3 bg-blue-100 dark:bg-blue-900/40 rounded-lg text-blue-600"><i class="fa-solid fa-briefcase text-xl"></i></div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">📅 Active Interviews</p>
+                        <h3 class="text-3xl font-bold mt-1" x-text="countStage('Interviewing')">0</h3>
+                    </div>
+                    <div class="p-3 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg text-yellow-600"><i class="fa-solid fa-calendar-days text-xl"></i></div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">💰 Avg Target Salary</p>
+                        <h3 class="text-3xl font-bold mt-1" x-text="'$' + formatSalary(getAvgSalary())">0</h3>
+                    </div>
+                    <div class="p-3 bg-green-100 dark:bg-green-900/40 rounded-lg text-green-600"><i class="fa-solid fa-sack-dollar text-xl"></i></div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">🤖 Mean AI Match Score</p>
+                        <h3 class="text-3xl font-bold mt-1" x-text="getAvgMatch() + '%'">0%</h3>
+                    </div>
+                    <div class="p-3 bg-purple-100 dark:bg-purple-900/40 rounded-lg text-purple-600"><i class="fa-solid fa-robot text-xl"></i></div>
+                </div>
+            </section>
+
+            <!-- CONTROLS, SEARCH, AND FILTERS -->
+            <section class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex flex-1 flex-col sm:flex-row gap-2">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" x-model="filters.search" placeholder="🔍 Search by company or role..." class="w-full pl-9 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                    </div>
+                    <input type="text" x-model="filters.location" placeholder="📍 Filter by location..." class="w-full sm:w-48 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
+                </div>
+                <div class="flex items-center gap-2 self-end md:self-auto">
+                    <button @click="exportCSV()" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium flex items-center gap-1">
+                        <i class="fa-solid fa-file-csv"></i> Export CSV
+                    </button>
+                    <button @click="openModal('add')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-1">
+                        <i class="fa-solid fa-plus"></i> Add Application
+                    </button>
+                </div>
+            </section>
+
+            <!-- CHARTS (DYNAMIC INTERACTIVE VISUALS SIMULATING CHART.JS) -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Status Breakdown Matrix Card -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <h4 class="text-sm font-bold uppercase tracking-wider text-gray-500 mb-4"><i class="fa-solid fa-chart-pie mr-1"></i> Stage Distribution</h4>
+                    <div class="space-y-3">
+                        <template x-for="stage in stages">
+                            <div>
+                                <div class="flex justify-between text-xs font-semibold mb-1">
+                                    <span x-text="stage"></span>
+                                    <span x-text="countStage(stage) + ' apps'"></span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                                    <div class="h-full bg-blue-500 transition-all duration-500" :style="`width: ${jobs.length ? (countStage(stage) / jobs.length) * 100 : 0}%`"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Salary vs AI Score Grid Visualizer -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between">
+                    <div>
+                        <h4 class="text-sm font-bold uppercase tracking-wider text-gray-500 mb-2"><i class="fa-solid fa-chart-line mr-1"></i> Value Pipeline Analytics</h4>
+                        <p class="text-xs text-gray-400 mb-4">Real-time analytical mapping of application value weights vs AI relevance.</p>
+                    </div>
+                    <div class="h-32 flex items-end gap-2 border-b border-l border-gray-200 dark:border-gray-700 p-2 relative">
+                        <template x-for="job in filteredJobs()">
+                            <div class="flex-1 flex flex-col items-center group relative" :style="`height: ${Math.min(job.aiMatch, 100)}%`">
+                                <div class="w-full bg-gradient-to-t from-blue-500 to-purple-500 rounded-t min-h-[10px] h-full transition-all duration-300 group-hover:opacity-80"></div>
+                                <span class="text-[9px] truncate w-full text-center mt-1 text-gray-400" x-text="job.company"></span>
+                                <!-- Custom Reactive Tooltip Simulation -->
+                                <div class="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded p-2 z-10 w-32 shadow-xl">
+                                    <p class="font-bold truncate" x-text="job.title"></p>
+                                    <p x-text="'$'+formatSalary(job.salary)"></p>
+                                    <p x-text="'Match: '+job.aiMatch+'%'"></p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </section>
+
+            <!-- KANBAN BOARD WITH DYNAMIC DRAG/DROP STAGE ASSIGNMENT -->
+            <section class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-map text-orange-500"></i> Kanban Stage Roadmap</h3>
+                    <p class="text-xs text-gray-400">Click arrow controls on individual workflow cards to adjust candidate track stages.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 overflow-x-auto pb-4">
+                    <template x-for="stage in stages">
+                        <div class="bg-gray-100/70 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-200 dark:border-gray-700 min-w-[220px] flex flex-col min-h-[350px]">
+                            <div class="flex items-center justify-between mb-3 border-b pb-2 border-gray-200 dark:border-gray-700">
+                                <span class="font-bold text-sm text-gray-700 dark:text-gray-300" x-text="stage"></span>
+                                <span class="bg-gray-200 dark:bg-gray-700 text-xs px-2 py-0.5 rounded-full font-bold" x-text="jobs.filter(j => j.stage === stage).length"></span>
+                            </div>
+                            
+                            <div class="space-y-3 flex-1 overflow-y-auto">
+                                <template x-for="job in filteredJobs().filter(j => j.stage === stage)" :key="job.id">
+                                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 group relative hover:shadow-md transition">
+                                        <div class="flex justify-between items-start gap-1">
+                                            <div>
+                                                <h5 class="font-bold text-sm text-gray-900 dark:text-white truncate max-w-[140px]" x-text="job.company"></h5>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[140px]" x-text="job.title"></p>
+                                            </div>
+                                            <!-- Favorite Star Flag Toggle Toggle -->
+                                            <button @click="toggleFavorite(job.id)" class="text-gray-300 dark:text-gray-600 hover:text-yellow-400 transition">
+                                                <i class="fa-solid fa-star" :class="{ 'text-yellow-400': job.favorite }"></i>
+                                            </button>
+                                        </div>
+
+                                        <div class="mt-3 space-y-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                            <div class="flex items-center gap-1"><i class="fa-solid fa-location-dot w-3"></i> <span x-text="job.location"></span></div>
+                                            <div class="flex items-center gap-1"><i class="fa-solid fa-dollar-sign w-3"></i> <span x-text="formatSalary(job.salary)"></span></div>
+                                            <div class="flex items-center gap-1">
+                                                <i class="fa-solid fa-robot w-3 text-purple-500"></i> 
+                                                <span class="font-bold text-purple-600 dark:text-purple-400" x-text="`Match: ${job.aiMatch}%`"></span>
+                                            </div>
+                                            <template x-if="job.resumeName">
+                                                <div class="flex items-center gap-1 text-blue-500 truncate"><i class="fa-solid fa-file-pdf"></i> <span x-text="job.resumeName"></span></div>
+                                            </template>
+                                        </div>
+
+                                        <!-- Notes Snippet View -->
+                                        <template x-if="job.notes">
+                                            <p class="mt-2 text-[11px] italic text-gray-400 dark:text-gray-500 border-t pt-1 border-dashed truncate" x-text="job.notes"></p>
+                                        </template>
+
+                                        <!-- Kanban Pipeline Controls -->
+                                        <div class="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                                            <div class="flex gap-1">
+                                                <button @click="moveStage(job.id, -1)" class="p-1 text-xs bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200"><i class="fa-solid fa-chevron-left"></i></button>
+                                                <button @click="moveStage(job.id, 1)" class="p-1 text-xs bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200"><i class="fa-solid fa-chevron-right"></i></button>
+                                            </div>
+                                            <div class="flex gap-1">
+                                                <button @click="openModal('edit', job)" class="text-xs text-blue-500 hover:underline px-1">Edit</button>
+                                                <button @click="deleteJob(job.id)" class="text-xs text-red-500 hover:underline px-1">Delete</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- INTERVIEW CALENDAR SCHEDULER VIEW -->
+            <section class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-calendar text-red-500"></i> Interview Calendar</h3>
+                    <span class="text-xs font-semibold text-gray-400">Timeline Schedule Matrix (Current Month Horizon)</span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                    <!-- Dynamic Month View Mockup populated from current timeline state -->
+                    <template x-for="day in calendarDays">
+                        <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 min-h-[80px] bg-gray-50/50 dark:bg-gray-900/20 flex flex-col justify-between">
+                            <span class="text-xs font-bold text-gray-400" x-text="day.date"></span>
+                            <div class="space-y-1">
+                                <template x-for="event in getEventsForDate(day.rawDate)">
+                                    <div class="bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 text-[10px] p-1 rounded font-medium truncate" :title="`${event.company} - ${event.title}`">
+                                        💥 <span x-text="event.company"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+        </main>
+
+        <!-- APPLICATION MANAGEMENT CRUD MODAL FORM (ADD & EDIT CONTAINER) -->
+        <div x-show="modalOpen" class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" x-cloak>
+            <div @click.away="modalOpen = false" class="bg-white dark:bg-gray-800 w-full max-w-lg rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transform transition-all">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white" x-text="modalMode === 'add' ? '💼 Track New Opportunity' : '📝 Modify Application Data'"></h3>
+                    <button @click="modalOpen = false" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <form @submit.prevent="saveJob()">
+                    <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Company Name *</label>
+                                <input type="text" x-model="form.company" required class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Job Title *</label>
+                                <input type="text" x-model="form.title" required class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">📌 Job Location</label>
+                                <input type="text" x-model="form.location" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" placeholder="e.g. Remote, NY">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">💰 Base Salary ($)</label>
+                                <input type="number" x-model="form.salary" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" placeholder="e.g. 120000">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Pipeline Workflow Stage</label>
+                                <select x-model="form.stage" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm">
+                                    <template x-for="stage in stages">
+                                        <option :value="stage" x-text="stage"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">📅 Interview Date</label>
+                                <input type="date" x-model="form.date" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <!-- Simulated AI Match Score Engine Interface -->
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500">🤖 AI Job Match Alignment Engine</label>
+                                <button type="button" @click="generateAIMatch()" class="text-xs text-blue-500 hover:underline font-bold">✨ Run Diagnostics</button>
+                            </div>
+                            <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-900/40 p-3 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
+                                <input type="range" min="10" max="100" x-model="form.aiMatch" class="flex-1 accent-blue-600">
+                                <span class="text-sm font-black text-purple-600 dark:text-purple-400" x-text="form.aiMatch + '%'"></span>
+                            </div>
+                        </div>
+                        <div>
+                            <!-- Mock Resume Upload processing -->
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">📄 Resume Repository Reference</label>
+                            <div class="relative border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-center bg-gray-50/50 dark:bg-gray-900/10 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer">
+                                <input type="file" @change="simulateResumeUpload($event)" class="absolute inset-0 opacity-0 cursor-pointer">
+                                <span class="text-xs text-gray-500" x-text="form.resumeName ? '✅ Attached: ' + form.resumeName : '📂 Select or drop parsed CV document...'"></span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">📝 Notes & Discovery Context</label>
+                            <textarea x-model="form.notes" rows="3" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" placeholder="Key stack details, interviewer tracking names..."></textarea>
+                        </div>
+                    </div>
+                    <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
+                        <button type="button" @click="modalOpen = false" class="px-4 py-2 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
+                        <button type="submit" class="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP STATE ENGINE CONTRACTS AND LOGIC HANDLERS -->
+    <script>
+        function trackerApp() {
+            return {
+                isLoggedIn: true, // Simulation state auto-bypass for direct preview layout
+                authMode: 'login',
+                darkMode: false,
+                notification: '',
+                modalOpen: false,
+                modalMode: 'add',
+                editingId: null,
+                
+                stages: ['Applied', 'Phone Screen', 'Interviewing', 'Offer', 'Rejected'],
+                
+                filters: {
+                    search: '',
+                    location: ''
+                },
+
+                // Core Reactive Form Binding Schema Structure
+                form: {
+                    company: '',
+                    title: '',
+                    location: '',
+                    salary: '',
+                    stage: 'Applied',
+                    date: '',
+                    aiMatch: 75,
+                    resumeName: '',
+                    notes: '',
+                    favorite: false
+                },
+
+                // Complete high-fidelity mock applications mirroring requirements
+                jobs: [],
+
+                // Hardcoded active month container structure for Calendar UI mapping logic
+                calendarDays: [
+                    { date: '1', rawDate: '2026-06-01' }, { date: '2', rawDate: '2026-06-02' },
+                    { date: '3', rawDate: '2026-06-03' }, { date: '4', rawDate: '2026-06-04' },
+                    { date: '5', rawDate: '2026-06-05' }, { date: '6', rawDate: '2026-06-06' },
+                    { date: '7', rawDate: '2026-06-07' }, { date: '8', rawDate: '2026-06-08' },
+                    { date: '9', rawDate: '2026-06-09' }, { date: '10', rawDate: '2026-06-10' },
+                    { date: '11', rawDate: '2026-06-11' }, { date: '12', rawDate: '2026-06-12' },
+                    { date: '13', rawDate: '2026-06-13' }, { date: '14', rawDate: '2026-06-14' },
+                    { date: '15', rawDate: '2026-06-15' }, { date: '16', rawDate: '2026-06-16' },
+                    { date: '17', rawDate: '2026-06-17' }, { date: '18', rawDate: '2026-06-18' },
+                    { date: '19', rawDate: '2026-06-19' }, { date: '20', rawDate: '2026-06-20' },
+                    { date: '21', rawDate: '2026-06-21' }, { date: '22', rawDate: '2026-06-22' },
+                    { date: '23', rawDate: '2026-06-23' }, { date: '24', rawDate: '2026-06-24' },
+                    { date: '25', rawDate: '2026-06-25' }, { date: '26', rawDate: '2026-06-26' },
+                    { date: '27', rawDate: '2026-06-27' }, { date: '28', rawDate: '2026-06-28' },
+                ],
+
+                initTracker() {
+                    // Check local storage configuration maps
+                    if(localStorage.getItem('job_tracker_dark') === 'true') this.darkMode = true;
+                    
+                    const savedJobs = localStorage.getItem('job_tracker_data');
+                    if (savedJobs) {
+                        this.jobs = JSON.parse(savedJobs);
+                    } else {
+                        // Seed data standard layout matching spec guidelines if empty initialization sequence
+                        this.jobs = [
+                            { id: 1, company: 'Google', title: 'Senior Software Engineer', location: 'Mountain View, CA', salary: 180000, stage: 'Interviewing', date: '2026-06-10', aiMatch: 92, resumeName: 'CV_Principal_Engineer.pdf', notes: 'Technical screening cleared', favorite: true },
+                            { id: 2, company: 'Stripe', title: 'Staff Engineer', location: 'Remote', salary: 210000, stage: 'Offer', date: '2026-06-20', aiMatch: 88, resumeName: 'CV_Principal_Engineer.pdf', notes: 'Negotiating equity targets', favorite: false },
+                            { id: 3, company: 'Netflix', title: 'Engineering Manager', location: 'Los Gatos, CA', salary: 250000, stage: 'Applied', date: '2026-06-25', aiMatch: 95, resumeName: 'Manager_Resume.pdf', notes: 'Referral submitted', favorite: false },
+                            { id: 4, company: 'Apple', title: 'AI Engineer', location: 'Cupertino, CA', salary: 195000, stage: 'Rejected', date: '2026-06-01', aiMatch: 71, resumeName: '', notes: 'Position alignment gap', favorite: false }
+                        ];
+                        this.syncStorage();
+                    }
+                },
+
+                triggerNotification(msg) {
+                    this.notification = msg;
+                    setTimeout(() => this.notification = '', 4000);
+                },
+
+                syncStorage() {
+                    localStorage.setItem('job_tracker_data', JSON.stringify(this.jobs));
+                },
+
+                toggleTheme() {
+                    this.darkMode = !this.darkMode;
+                    localStorage.setItem('job_tracker_dark', this.darkMode);
+                    this.triggerNotification(`Switched to ${this.darkMode ? 'Dark' : 'Light'} Mode context UI.`);
+                },
+
+                handleAuth() {
+                    this.isLoggedIn = true;
+                    this.triggerNotification("Successfully synchronized dashboard secure instance profile data.");
+                },
+
+                logout() {
+                    this.isLoggedIn = false;
+                    this.triggerNotification("Terminated secure analytical dashboard view state.");
+                },
+
+                filteredJobs() {
+                    return this.jobs.filter(job => {
+                        const matchSearch = job.company.toLowerCase().includes(this.filters.search.toLowerCase()) || 
+                                            job.title.toLowerCase().includes(this.filters.search.toLowerCase());
+                        const matchLoc = job.location.toLowerCase().includes(this.filters.location.toLowerCase());
+                        return matchSearch && matchLoc;
+                    });
+                },
+
+                countStage(stage) {
+                    return this.jobs.filter(j => j.stage === stage).length;
+                },
+
+                getAvgSalary() {
+                    if (!this.jobs.length) return 0;
+                    const validSalaries = this.jobs.filter(j => j.salary).map(j => Number(j.salary));
+                    if (!validSalaries.length) return 0;
+                    return Math.round(validSalaries.reduce((a, b) => a + b, 0) / validSalaries.length);
+                },
+
+                getAvgMatch() {
+                    if (!this.jobs.length) return 0;
+                    const matches = this.jobs.map(j => Number(j.aiMatch || 0));
+                    return Math.round(matches.reduce((a, b) => a + b, 0) / this.jobs.length);
+                },
+
+                formatSalary(val) {
+                    return Number(val).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                },
+
+                getEventsForDate(dateStr) {
+                    return this.jobs.filter(j => j.date === dateStr);
+                },
+
+                toggleFavorite(id) {
+                    this.jobs = this.jobs.map(j => j.id === id ? { ...j, favorite: !j.favorite } : j);
+                    this.syncStorage();
+                },
+
+                moveStage(id, direction) {
+                    this.jobs = this.jobs.map(j => {
+                        if (j.id === id) {
+                            let currIdx = this.stages.indexOf(j.stage);
+                            let nextIdx = currIdx + direction;
+                            if (nextIdx >= 0 && nextIdx < this.stages.length) {
+                                return { ...j, stage: this.stages[nextIdx] };
+                            }
+                        }
+                        return j;
+                    });
+                    this.syncStorage();
+                    this.triggerNotification("Kanban state context pipeline re-ordered.");
+                },
+
+                openModal(mode, targetJob = null) {
+                    this.modalMode = mode;
+                    if (mode === 'edit' && targetJob) {
+                        this.editingId = targetJob.id;
+                        this.form = { ...targetJob };
+                    } else {
+                        this.editingId = null;
+                        this.form = { company: '', title: '', location: '', salary: '', stage: 'Applied', date: '', aiMatch: 75, resumeName: '', notes: '', favorite: false };
+                    }
+                    this.modalOpen = true;
+                },
+
+                generateAIMatch() {
+                    // Unique automated contextual calculation simulating algorithmic response checks
+                    let score = Math.floor(Math.random() * (99 - 65 + 1)) + 65;
+                    this.form.aiMatch = score;
+                    this.triggerNotification(`AI Profile scanner evaluated alignment match index at: ${score}%`);
+                },
+
+                simulateResumeUpload(e) {
+                    if (e.target.files.length) {
+                        this.form.resumeName = e.target.files[0].name;
+                        this.triggerNotification(`CV parsing structural mapping active for: ${this.form.resumeName}`);
+                    }
+                },
+
+                saveJob() {
+                    if (this.modalMode === 'add') {
+                        const newJob = {
+                            id: Date.now(),
+                            ...this.form,
+                            salary: this.form.salary ? Number(this.form.salary) : ''
+                        };
+                        this.jobs.push(newJob);
+                        this.triggerNotification("Persisted downstream entry metadata record layout.");
+                    } else {
+                        this.jobs = this.jobs.map(j => j.id === this.editingId ? { ...this.form, salary: this.form.salary ? Number(this.form.salary) : '' } : j);
+                        this.triggerNotification("Updated structural record changes successfully.");
+                    }
+                    this.syncStorage();
+                    this.modalOpen = false;
+                },
+
+                deleteJob(id) {
+                    if(confirm("Confirm record erasure trajectory?")) {
+                        this.jobs = this.jobs.filter(j => j.id !== id);
+                        this.syncStorage();
+                        this.triggerNotification("Opportunity deleted from track memory index.");
+                    }
+                },
+
+                exportCSV() {
+                    // Dynamic creation of data strings for file save execution
+                    let headers = ["Company", "Title", "Location", "Salary", "Stage", "Interview Date", "AI Match %", "Notes"];
+                    let rows = this.jobs.map(j => [j.company, j.title, j.location, j.salary, j.stage, j.date, j.aiMatch, j.notes].join(","));
+                    let csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+                    
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", "Job_Applications_Report_2026.csv");
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    this.triggerNotification("CSV application report compiled.");
+                }
+            }
+        }
+    </script>
+</body>
+</html>
